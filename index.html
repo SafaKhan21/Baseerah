@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام إدارة انتهاء الصلاحية</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#181c27;--surface2:#1e2336;
+  --ink:#e8ecf5;--ink2:#8892aa;--ink3:#4a5270;
+  --red:#ff4d4d;--red-bg:rgba(255,77,77,0.1);--red-border:rgba(255,77,77,0.25);
+  --amber:#ffaa00;--amber-bg:rgba(255,170,0,0.08);--amber-border:rgba(255,170,0,0.25);
+  --yellow:#f5d800;--yellow-bg:rgba(245,216,0,0.07);--yellow-border:rgba(245,216,0,0.2);
+  --green:#00cc88;--green-bg:rgba(0,204,136,0.08);--green-border:rgba(0,204,136,0.2);
+  --blue:#4d9fff;--blue-bg:rgba(77,159,255,0.1);
+  --border:rgba(255,255,255,0.08);
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'Cairo',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh}
+
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-brand{display:flex;align-items:center;gap:12px}
+.nav-logo{width:32px;height:32px;background:rgba(255,77,77,0.15);border:1px solid var(--red-border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.nav-title{font-size:15px;font-weight:700}
+.nav-sub{font-size:10px;color:var(--ink3);font-family:var(--mono);letter-spacing:1px}
+.nav-alerts{display:flex;align-items:center;gap:6px;background:var(--red-bg);border:1px solid var(--red-border);padding:6px 14px;border-radius:6px;font-size:12px;color:var(--red)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--red);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.3)}}
+.nav-user{font-size:13px;color:var(--ink2)}
+
+.shell{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 56px)}
+
+/* SIDEBAR */
+.sidebar{background:var(--surface);border-left:1px solid var(--border);padding:1.5rem 0}
+.filter-section{padding:0 1.25rem;margin-bottom:1.5rem}
+.filter-label{font-size:10px;font-family:var(--mono);color:var(--ink3);letter-spacing:2px;margin-bottom:10px}
+.urgency-filter{display:flex;flex-direction:column;gap:6px}
+.uf-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all 0.15s}
+.uf-item.active-f,.uf-item:hover{border-color:var(--border)}
+.uf-left{display:flex;align-items:center;gap:8px;font-size:13px}
+.uf-dot{width:10px;height:10px;border-radius:50%}
+.uf-count{font-family:var(--mono);font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px}
+.red-uf{background:var(--red-bg);border-color:var(--red-border)!important}
+.red-uf .uf-count{color:var(--red)}
+.amber-uf{background:var(--amber-bg);border-color:var(--amber-border)!important}
+.amber-uf .uf-count{color:var(--amber)}
+.yellow-uf .uf-count{color:var(--yellow)}
+.green-uf .uf-count{color:var(--green)}
+
+.stats-mini{padding:0 1.25rem;margin-top:1.5rem}
+.sm-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--ink2)}
+.sm-item:last-child{border-bottom:none}
+.sm-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ink)}
+
+/* MAIN */
+.main{padding:2rem;overflow-y:auto}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2rem}
+.page-title{font-size:24px;font-weight:900;letter-spacing:-0.5px}
+.page-title .hl-red{color:var(--red)}
+.page-date{font-size:11px;font-family:var(--mono);color:var(--ink3);margin-top:4px}
+
+/* SUMMARY CARDS */
+.sum-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:2rem}
+.sc{border:1px solid;border-radius:12px;padding:1.25rem;position:relative;overflow:hidden}
+.sc::before{content:'';position:absolute;top:-20px;left:-20px;width:80px;height:80px;border-radius:50%;opacity:0.06}
+.sc-red{background:var(--red-bg);border-color:var(--red-border)}
+.sc-red::before{background:var(--red)}
+.sc-amber{background:var(--amber-bg);border-color:var(--amber-border)}
+.sc-amber::before{background:var(--amber)}
+.sc-yellow{background:var(--yellow-bg);border-color:var(--yellow-border)}
+.sc-yellow::before{background:var(--yellow)}
+.sc-green{background:var(--green-bg);border-color:var(--green-border)}
+.sc-green::before{background:var(--green)}
+.sc-num{font-size:2rem;font-weight:900;font-family:var(--mono);line-height:1}
+.sc-red .sc-num{color:var(--red)}.sc-amber .sc-num{color:var(--amber)}
+.sc-yellow .sc-num{color:var(--yellow)}.sc-green .sc-num{color:var(--green)}
+.sc-label{font-size:12px;color:var(--ink2);margin-top:4px}
+.sc-sub{font-size:10px;font-family:var(--mono);margin-top:8px;opacity:0.7}
+.sc-red .sc-sub{color:var(--red)}.sc-amber .sc-sub{color:var(--amber)}
+.sc-yellow .sc-sub{color:var(--yellow)}.sc-green .sc-sub{color:var(--green)}
+
+/* PRODUCT CARDS */
+.section-title{font-size:13px;font-family:var(--mono);color:var(--ink3);letter-spacing:2px;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.product-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:2rem}
+
+.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color 0.2s}
+.prod-card:hover{border-color:rgba(255,255,255,0.15)}
+.prod-card.critical{border-color:var(--red-border);background:rgba(255,77,77,0.03)}
+.prod-card.warning{border-color:var(--amber-border)}
+.prod-card.done{opacity:0.5}
+
+.prod-main{display:grid;grid-template-columns:auto 1fr auto auto;gap:1.25rem;align-items:center;padding:1.25rem 1.5rem}
+.prod-icon-wrap{position:relative}
+.prod-icon-big{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.urgency-ring{position:absolute;inset:-3px;border-radius:14px;border:2px solid;animation:ringPulse 2s infinite}
+@keyframes ringPulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.prod-details{}
+.prod-name-big{font-size:15px;font-weight:700;margin-bottom:3px}
+.prod-meta-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink2)}
+.prod-meta-row span{display:flex;align-items:center;gap:4px}
+.days-left{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:70px}
+.dl-num{font-family:var(--mono);font-size:1.8rem;font-weight:700;line-height:1}
+.dl-label{font-size:10px;color:var(--ink3);font-family:var(--mono)}
+.action-group{display:flex;gap:8px}
+
+.act{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid;font-family:var(--sans);transition:all 0.2s;white-space:nowrap}
+.act-discount{color:var(--green);border-color:var(--green-border);background:var(--green-bg)}
+.act-discount:hover{background:var(--green);color:#000}
+.act-transfer{color:var(--blue);border-color:rgba(77,159,255,0.3);background:var(--blue-bg)}
+.act-transfer:hover{background:var(--blue);color:#fff}
+.act-promo{color:var(--amber);border-color:var(--amber-border);background:var(--amber-bg)}
+.act-promo:hover{background:var(--amber);color:#000}
+
+.prod-timeline{padding:0 1.5rem 1rem;display:flex;align-items:center;gap:0}
+.tl-seg{flex:1;height:6px;border-radius:0;transition:background 0.3s}
+.tl-seg:first-child{border-radius:3px 0 0 3px}
+.tl-seg:last-child{border-radius:0 3px 3px 0}
+.tl-marker{width:2px;height:12px;background:rgba(255,255,255,0.3)}
+
+.action-done-badge{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);font-size:11px;font-family:var(--mono);padding:6px 12px;border-radius:6px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s;backdrop-filter:blur(4px)}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface2);border:1px solid var(--border);border-radius:18px;padding:2rem;width:440px;max-width:90vw;transform:scale(0.95);transition:transform 0.2s}
+.modal-overlay.open .modal{transform:scale(1)}
+.modal-icon{font-size:40px;margin-bottom:1rem}
+.modal-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--ink2);line-height:1.6;margin-bottom:1.5rem}
+.modal-options{display:flex;flex-direction:column;gap:8px;margin-bottom:1.5rem}
+.mo-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:10px;font-size:14px}
+.mo-item:hover{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.03)}
+.mo-item.selected{border-color:var(--green);background:var(--green-bg)}
+.mo-check{width:18px;height:18px;border-radius:4px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transition:all 0.15s}
+.mo-item.selected .mo-check{background:var(--green);border-color:var(--green);color:#000}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+.mbtn{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:var(--sans);transition:all 0.15s}
+.mbtn-cancel{background:var(--surface);border:1px solid var(--border);color:var(--ink2)}
+.mbtn-confirm{background:var(--green);color:#000}
+
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--green-border);color:var(--green);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:all 0.3s;z-index:200;display:flex;align-items:center;gap:8px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">⏱️</div>
+    <div>
+      <div class="nav-title">نظام إدارة انتهاء الصلاحية</div>
+      <div class="nav-sub">EXPIRY INTELLIGENCE SYSTEM</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="nav-alerts"><div class="pulse"></div> 3 منتجات تحتاج تدخل فوري</div>
+    <div class="nav-user">سارة — مديرة الفرع</div>
+  </div>
+</nav>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="filter-section">
+      <div class="filter-label">تصفية حسب الخطورة</div>
+      <div class="urgency-filter">
+        <div class="uf-item red-uf active-f" onclick="filterDays(this,'critical')">
+          <div class="uf-left"><div class="uf-dot" style="background:var(--red)"></div><span>أقل من 7 أيام</span></div>
+          <div class="uf-count">3</div>
+        </div>
+        <div class="uf-item amber-uf" onclick="filterDays(this,'warning')">
+          <div class="uf-left"><div class="uf-dot" style="background:var(--amber)"></div><span>7–14 يوم</span></div>
+          <div class="uf-count">4</div>
+        </div>
+        <div class="uf-item yellow-uf" onclick="filterDays(this,'watch')">
+          <div class="uf-left"><div class="uf-dot" style="background:var(--yellow)"></div><span>14–30 يوم</span></div>
+          <div class="uf-count">5</div>
+        </div>
+        <div class="uf-item green-uf" onclick="filterDays(this,'safe')">
+          <div class="uf-left"><div class="uf-dot" style="background:var(--green)"></div><span>أكثر من 30 يوم</span></div>
+          <div class="uf-count">12</div>
+        </div>
+        <div class="uf-item" onclick="filterDays(this,'all')" style="background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+          <div class="uf-left"><div class="uf-dot" style="background:var(--ink3)"></div><span>عرض الكل</span></div>
+          <div class="uf-count" style="color:var(--ink2)">24</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-mini filter-section">
+      <div class="filter-label">إحصائيات اليوم</div>
+      <div class="sm-item"><span>وحدات في خطر</span><span class="sm-val" style="color:var(--red)">47</span></div>
+      <div class="sm-item"><span>تم إنقاذها هذا الأسبوع</span><span class="sm-val" style="color:var(--green)">38</span></div>
+      <div class="sm-item"><span>خصومات نشطة</span><span class="sm-val">5</span></div>
+      <div class="sm-item"><span>نقل بين فروع</span><span class="sm-val">2</span></div>
+      <div class="sm-item"><span>قيمة الهدر المُجنَّب</span><span class="sm-val" style="color:var(--green)">2,840 ر</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">تنبيهات <span class="hl-red">انتهاء الصلاحية</span></div>
+        <div class="page-date">الثلاثاء 1 أبريل 2025 — الفرع الرئيسي • تحديث تلقائي كل 5 دقائق</div>
+      </div>
+    </div>
+
+    <div class="sum-cards">
+      <div class="sc sc-red">
+        <div class="sc-num" id="critCount">3</div>
+        <div class="sc-label">منتجات حرجة</div>
+        <div class="sc-sub">↑ تحتاج تدخل الآن</div>
+      </div>
+      <div class="sc sc-amber">
+        <div class="sc-num">4</div>
+        <div class="sc-label">منتجات تحذير</div>
+        <div class="sc-sub">خلال أسبوعين</div>
+      </div>
+      <div class="sc sc-yellow">
+        <div class="sc-num">5</div>
+        <div class="sc-label">تحت المراقبة</div>
+        <div class="sc-sub">خلال 30 يوم</div>
+      </div>
+      <div class="sc sc-green">
+        <div class="sc-num" id="savedCount">38</div>
+        <div class="sc-label">وحدة أُنقذت</div>
+        <div class="sc-sub">↓ هدر مُجنَّب هذا الشهر</div>
+      </div>
+    </div>
+
+    <!-- Critical section -->
+    <div id="critSection">
+      <div class="section-title">🔴 حرجة — تحتاج تدخل فوري</div>
+      <div class="product-grid" id="critGrid"></div>
+    </div>
+
+    <div id="warnSection">
+      <div class="section-title">🟠 تحذير — خلال أسبوعين</div>
+      <div class="product-grid" id="warnGrid"></div>
+    </div>
+
+    <div id="watchSection">
+      <div class="section-title">🟡 مراقبة — خلال 30 يوم</div>
+      <div class="product-grid" id="watchGrid"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Action Modal -->
+<div class="modal-overlay" id="actionModal">
+  <div class="modal">
+    <div class="modal-icon" id="mIcon">💰</div>
+    <div class="modal-title" id="mTitle">تطبيق خصم</div>
+    <div class="modal-sub" id="mSub">اختر نسبة الخصم المناسبة لتسريع البيع</div>
+    <div class="modal-options" id="mOptions"></div>
+    <div class="modal-actions">
+      <button class="mbtn mbtn-cancel" onclick="closeModal()">إلغاء</button>
+      <button class="mbtn mbtn-confirm" onclick="confirmAction()">تنفيذ الإجراء</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const products = [
+  {id:1,level:'critical',icon:'🥛',name:'حليب طازج كامل الدسم',branch:'الفرع الرئيسي',units:18,days:3,expiry:'4 أبريل'},
+  {id:2,level:'critical',icon:'🧃',name:'عصير برتقال طازج',branch:'الفرع الشمالي',units:24,days:5,expiry:'6 أبريل'},
+  {id:3,level:'critical',icon:'🍓',name:'فراولة طازجة عضوية',branch:'الفرع الرئيسي',units:15,days:2,expiry:'3 أبريل'},
+  {id:4,level:'warning',icon:'🧀',name:'جبن شيدر مقطع',branch:'الفرع الجنوبي',units:40,days:9,expiry:'10 أبريل'},
+  {id:5,level:'warning',icon:'🥚',name:'بيض بلدي عضوي',branch:'الفرع الغربي',units:60,days:11,expiry:'12 أبريل'},
+  {id:6,level:'warning',icon:'🧈',name:'زبدة طبيعية بدون ملح',branch:'الفرع الرئيسي',units:22,days:13,expiry:'14 أبريل'},
+  {id:7,level:'warning',icon:'🍦',name:'كريمة خفق للطهي',branch:'الفرع الشمالي',units:30,days:12,expiry:'13 أبريل'},
+  {id:8,level:'watch',icon:'🌿',name:'زبادي يوناني بالعسل',branch:'الفرع الرئيسي',units:50,days:20,expiry:'21 أبريل'},
+  {id:9,level:'watch',icon:'🥑',name:'أفوكادو طازج عضوي',branch:'الفرع الجنوبي',units:35,days:18,expiry:'19 أبريل'},
+  {id:10,level:'watch',icon:'🫙',name:'لبنة بيت بالزيتون',branch:'الفرع الغربي',units:45,days:25,expiry:'26 أبريل'},
+  {id:11,level:'watch',icon:'🍶',name:'حليب صويا عضوي',branch:'الفرع الرئيسي',units:28,days:22,expiry:'23 أبريل'},
+  {id:12,level:'watch',icon:'🧋',name:'حليب لوز غير محلى',branch:'الفرع الشمالي',units:33,days:27,expiry:'28 أبريل'},
+];
+
+let actions = {};
+let currentAction = null;
+let currentCat = 'all';
+
+const levelColors = {critical:{c:'var(--red)',bg:'var(--red-bg)',border:'var(--red-border)'},warning:{c:'var(--amber)',bg:'var(--amber-bg)',border:'var(--amber-border)'},watch:{c:'var(--yellow)',bg:'var(--yellow-bg)',border:'var(--yellow-border)'}};
+const levelLabel = {critical:'حرج',warning:'تحذير',watch:'مراقبة'};
+
+const discountOptions = ['خصم 20%','خصم 30%','خصم 40%','خصم 50%'];
+const transferOptions = ['نقل للفرع الشمالي','نقل للفرع الجنوبي','نقل للفرع الغربي','توزيع على الفروع'];
+const promoOptions = ['عرض اشترِ 2 بسعر 1','حزمة قيمة مع منتج آخر','عرض السوشيال ميديا','إشعار لعملاء التطبيق'];
+
+function renderProducts(){
+  const grids = {critical:'critGrid',warning:'warnGrid',watch:'watchGrid'};
+  Object.entries(grids).forEach(([level,gridId])=>{
+    const filtered = products.filter(p=>p.level===level);
+    const el = document.getElementById(gridId);
+    if(!el) return;
+    el.innerHTML = filtered.map(p=>{
+      const lc = levelColors[p.level]||{c:'var(--ink)',bg:'transparent',border:'var(--border)'};
+      const isDone = actions[p.id];
+      const pct = Math.min(100,Math.round((p.days/30)*100));
+      const segs = Array.from({length:30},(_,i)=>{
+        let bg;
+        if(i < p.days) bg = lc.c;
+        else bg = 'rgba(255,255,255,0.05)';
+        return `<div class="tl-seg" style="background:${bg};opacity:${i<p.days?0.7+(i/p.days)*0.3:1}"></div>`;
+      }).join('');
+      return `<div class="prod-card ${p.level==='critical'?'critical':''} ${p.level==='warning'?'warning':''} ${isDone?'done':''}" id="card_${p.id}">
+        <div class="prod-main">
+          <div class="prod-icon-wrap">
+            <div class="prod-icon-big" style="background:${lc.bg}">${p.icon}</div>
+            ${!isDone?`<div class="urgency-ring" style="border-color:${lc.c}"></div>`:''}
+          </div>
+          <div class="prod-details">
+            <div class="prod-name-big">${p.name}</div>
+            <div class="prod-meta-row">
+              <span>🏪 ${p.branch}</span>
+              <span>📦 ${p.units} وحدة</span>
+              <span>📅 ينتهي ${p.expiry}</span>
+            </div>
+          </div>
+          <div class="days-left">
+            <div class="dl-num" style="color:${lc.c}">${p.days}</div>
+            <div class="dl-label">يوم</div>
+          </div>
+          <div class="action-group">
+            ${isDone
+              ? `<div class="action-done-badge">✓ ${isDone}</div>`
+              : `<button class="act act-discount" onclick="openAction(${p.id},'discount')">💰 خصم</button>
+                 <button class="act act-transfer" onclick="openAction(${p.id},'transfer')">🔄 نقل</button>
+                 <button class="act act-promo" onclick="openAction(${p.id},'promo')">📢 عرض</button>`
+            }
+          </div>
+        </div>
+        <div class="prod-timeline">${segs}</div>
+      </div>`;
+    }).join('');
+  });
+}
+
+function openAction(id, type){
+  const p = products.find(x=>x.id===id);
+  currentAction = {id, type, product: p};
+  const icons = {discount:'💰',transfer:'🔄',promo:'📢'};
+  const titles = {discount:'تطبيق خصم على — '+p.name,transfer:'نقل بين الفروع — '+p.name,promo:'إنشاء عرض تسويقي — '+p.name};
+  const subs = {discount:'اختر نسبة الخصم لتسريع البيع قبل '+p.days+' أيام',transfer:'اختر الفرع المستهدف للنقل الفوري',promo:'اختر نوع العرض للإطلاق الفوري'};
+  const opts = {discount:discountOptions,transfer:transferOptions,promo:promoOptions};
+  document.getElementById('mIcon').textContent = icons[type];
+  document.getElementById('mTitle').textContent = titles[type];
+  document.getElementById('mSub').textContent = subs[type];
+  document.getElementById('mOptions').innerHTML = opts[type].map((o,i)=>`
+    <div class="mo-item ${i===0?'selected':''}" onclick="selectOption(this)">
+      <div class="mo-check">${i===0?'✓':''}</div><span>${o}</span>
+    </div>`).join('');
+  document.getElementById('actionModal').classList.add('open');
+}
+
+function selectOption(el){
+  document.querySelectorAll('.mo-item').forEach(x=>{x.classList.remove('selected');x.querySelector('.mo-check').textContent='';});
+  el.classList.add('selected');
+  el.querySelector('.mo-check').textContent='✓';
+}
+
+function confirmAction(){
+  if(!currentAction) return;
+  const selected = document.querySelector('.mo-item.selected span');
+  if(!selected) return;
+  actions[currentAction.id] = selected.textContent;
+  closeModal();
+  renderProducts();
+  showToast('✓ تم تنفيذ الإجراء: '+selected.textContent+' — '+currentAction.product.name);
+}
+
+function closeModal(){document.getElementById('actionModal').classList.remove('open');}
+
+function filterDays(el, level){
+  document.querySelectorAll('.uf-item').forEach(x=>x.classList.remove('active-f'));
+  el.classList.add('active-f');
+  ['critSection','warnSection','watchSection'].forEach(id=>{
+    const el2 = document.getElementById(id);
+    if(el2) el2.style.display='block';
+  });
+  if(level==='all') return;
+  const map = {critical:'critSection',warning:'warnSection',watch:'watchSection'};
+  Object.entries(map).forEach(([k,v])=>{
+    const s = document.getElementById(v);
+    if(s) s.style.display = k===level?'block':'none';
+  });
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+renderProducts();
+document.getElementById('actionModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+</script>
+</body>
+</html>
